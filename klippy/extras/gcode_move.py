@@ -59,16 +59,16 @@ class GCodeMove:
         self.Coord = gcode.Coord
         # G-Code coordinate manipulation
         self.absolute_coord = self.absolute_extrude = True
-        self.base_position = [0.0, 0.0, 0.0, 0.0]
-        self.last_position = [0.0, 0.0, 0.0, 0.0]
-        self.homing_position = [0.0, 0.0, 0.0, 0.0]
+        self.base_position = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.last_position = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.homing_position = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.speed = 25.0
         self.speed_factor = 1.0 / 60.0
         self.extrude_factor = 1.0
         # G-Code state
         self.saved_states = {}
         self.move_transform = self.move_with_transform = None
-        self.position_with_transform = lambda: [0.0, 0.0, 0.0, 0.0]
+        self.position_with_transform = lambda: [0.0] * 6
 
     def _handle_ready(self):
         self.is_printer_ready = True
@@ -152,7 +152,13 @@ class GCodeMove:
         # Move
         params = gcmd.get_command_parameters()
         try:
-            for pos, axis in enumerate("XYZ"):
+            for pos, axis in (
+                (0, "X"),
+                (1, "Y"),
+                (2, "Z"),
+                (4, "A"),
+                (5, "B"),
+            ):
                 if axis in params:
                     v = float(params[axis])
                     if not self.absolute_coord:
@@ -209,19 +215,22 @@ class GCodeMove:
 
     def cmd_G92(self, gcmd):
         # Set position
-        offsets = [gcmd.get_float(a, None) for a in "XYZE"]
+        offsets = [gcmd.get_float(a, None) for a in "XYZEAB"]
         for i, offset in enumerate(offsets):
             if offset is not None:
                 if i == 3:
                     offset *= self.extrude_factor
                 self.base_position[i] = self.last_position[i] - offset
-        if offsets == [None, None, None, None]:
+        if offsets == [None] * 6:
             self.base_position = list(self.last_position)
 
     def cmd_M114(self, gcmd):
         # Get Current Position
         p = self._get_gcode_position()
-        gcmd.respond_raw("X:%.3f Y:%.3f Z:%.3f E:%.3f" % tuple(p))
+        gcmd.respond_raw(
+            "X:%.3f Y:%.3f Z:%.3f A:%.3f B:%.3f E:%.3f"
+            % (p[0], p[1], p[2], p[4], p[5], p[3])
+        )
 
     def cmd_M220(self, gcmd):
         # Set speed factor override percentage
@@ -240,8 +249,8 @@ class GCodeMove:
     cmd_SET_GCODE_OFFSET_help = "Set a virtual offset to g-code positions"
 
     def cmd_SET_GCODE_OFFSET(self, gcmd):
-        move_delta = [0.0, 0.0, 0.0, 0.0]
-        for pos, axis in enumerate("XYZE"):
+        move_delta = [0.0] * 6
+        for pos, axis in enumerate("XYZEAB"):
             offset = gcmd.get_float(axis, None)
             if offset is None:
                 offset = gcmd.get_float(axis + "_ADJUST", None)
@@ -296,6 +305,7 @@ class GCodeMove:
         if gcmd.get_int("MOVE", 0):
             speed = gcmd.get_float("MOVE_SPEED", self.speed, above=0.0)
             self.last_position[:3] = state["last_position"][:3]
+            self.last_position[4:] = state["last_position"][4:]
             self.move_with_transform(self.last_position, speed)
 
     cmd_GET_POSITION_help = (
@@ -313,22 +323,22 @@ class GCodeMove:
         )
         cinfo = [(s.get_name(), s.get_commanded_position()) for s in steppers]
         stepper_pos = " ".join(["%s:%.6f" % (a, v) for a, v in cinfo])
-        kinfo = zip("XYZ", kin.calc_position(dict(cinfo)))
+        kinfo = zip("XYZAB", kin.calc_position(dict(cinfo)))
         kin_pos = " ".join(["%s:%.6f" % (a, v) for a, v in kinfo])
         toolhead_pos = " ".join(
             [
                 "%s:%.6f" % (a, v)
-                for a, v in zip("XYZE", toolhead.get_position())
+                for a, v in zip("XYZEAB", toolhead.get_position())
             ]
         )
         gcode_pos = " ".join(
-            ["%s:%.6f" % (a, v) for a, v in zip("XYZE", self.last_position)]
+            ["%s:%.6f" % (a, v) for a, v in zip("XYZEAB", self.last_position)]
         )
         base_pos = " ".join(
-            ["%s:%.6f" % (a, v) for a, v in zip("XYZE", self.base_position)]
+            ["%s:%.6f" % (a, v) for a, v in zip("XYZEAB", self.base_position)]
         )
         homing_pos = " ".join(
-            ["%s:%.6f" % (a, v) for a, v in zip("XYZ", self.homing_position)]
+            ["%s:%.6f" % (a, v) for a, v in zip("XYZEAB", self.homing_position)]
         )
         gcmd.respond_info(
             "mcu: %s\n"

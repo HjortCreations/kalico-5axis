@@ -200,8 +200,9 @@ The printer section controls high level printer settings.
 [printer]
 kinematics:
 #   The type of printer in use. This option may be one of: cartesian,
-#   corexy, corexz, hybrid_corexy, hybrid_corexz, rotary_delta, delta,
-#   deltesian, polar, winch, or none. This parameter must be specified.
+#   corexy, corexy_3z_tilt, corexz, hybrid_corexy, hybrid_corexz,
+#   rotary_delta, delta, deltesian, polar, winch, or none. This
+#   parameter must be specified.
 max_velocity:
 #   Maximum velocity (in mm/s) of the toolhead (relative to the
 #   print). This value may be changed at runtime using the
@@ -643,6 +644,59 @@ max_z_accel:
 # The stepper_z section is used to describe the stepper controlling
 # the Z axis.
 [stepper_z]
+```
+
+### CoreXY Kinematics with Three-Point Bed Tilt
+
+See [example-corexy-3z-tilt.cfg](../config/example-corexy-3z-tilt.cfg) for
+an example CoreXY printer with a bed moved by exactly three independently
+driven Z motors.
+
+This kinematics adds the CNC-standard rotary axes `A` and `B` to `G0` and
+`G1` moves. `A` is rotation about X and `B` is rotation about Y. Angles are
+specified in degrees and follow the right-hand rule. The virtual `Z`
+coordinate is the height of the configured bed pivot. For pure rotary moves,
+`F` is interpreted as degrees per minute. For combined linear and rotary
+moves, `F` is interpreted as millimeters per minute and the rotary velocity
+limits are applied separately.
+
+```
+[printer]
+kinematics: corexy_3z_tilt
+max_z_velocity:
+#   Maximum velocity (in mm/s) for each Z support motor.
+max_z_accel:
+#   Maximum acceleration (in mm/s^2) for each Z support motor.
+
+[corexy_3z_tilt]
+z_positions:
+#   A list of three X,Y coordinates (one per line) describing the location
+#   of each bed support. The order must match stepper_z, stepper_z1, and
+#   stepper_z2.
+pivot_position:
+#   The X,Y coordinate of the virtual bed pivot. XYZ positions are expressed
+#   at this point. The default is the centroid of the three supports.
+max_a: 5.0
+#   Maximum absolute A angle in degrees. The default is 5 degrees.
+max_b: 5.0
+#   Maximum absolute B angle in degrees. The default is 5 degrees.
+max_a_velocity: 5.0
+#   Maximum A velocity in degrees per second. The default is 5 degrees/s.
+max_b_velocity: 5.0
+#   Maximum B velocity in degrees per second. The default is 5 degrees/s.
+max_a_accel: 5.0
+#   Maximum A acceleration in degrees per second squared. The default is 5.
+max_b_accel: 5.0
+#   Maximum B acceleration in degrees per second squared. The default is 5.
+
+# The stepper_x and stepper_y sections describe the CoreXY gantry.
+[stepper_x]
+[stepper_y]
+
+# Exactly three Z steppers are required.
+[stepper_z]
+[stepper_z1]
+[stepper_z2]
 ```
 
 ### ⚠️ CoreXY Kinematics with limits for X and Y axes

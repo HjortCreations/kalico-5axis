@@ -2328,7 +2328,7 @@ class TradRackToolHead(toolhead.ToolHead, object):
         else:
             self.move_queue = toolhead.MoveQueue(self)
             self.move_queue.set_flush_time(toolhead.BUFFER_TIME_HIGH)
-        self.commanded_pos = [0.0, 0.0, 0.0, 0.0]
+        self.commanded_pos = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         # Velocity and acceleration control
         tr_config = config.getsection("trad_rack")
         self.sel_max_velocity = tr_config.getfloat(
@@ -2412,7 +2412,7 @@ class TradRackToolHead(toolhead.ToolHead, object):
         )
 
     def set_position(self, newpos, homing_axes=()):
-        for _ in range(4 - len(newpos)):
+        for _ in range(6 - len(newpos)):
             newpos.append(0.0)
         super(TradRackToolHead, self).set_position(newpos, homing_axes)
 

@@ -99,6 +99,9 @@ class ZAdjustHelper:
         toolhead.flush_step_generation()
         last_stepper.set_trapq(toolhead.get_trapq())
         curpos[2] += first_stepper_offset
+        kin = toolhead.get_kinematics()
+        if hasattr(kin, "get_z_reference_position"):
+            curpos = kin.get_z_reference_position(curpos)
         toolhead.set_position(curpos)
 
 

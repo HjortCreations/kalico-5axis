@@ -238,7 +238,7 @@ class ResonanceTestExecutor:
     def _run_test(self, test_seq, axis, gcmd):
         reactor = self.printer.get_reactor()
         toolhead = self.printer.lookup_object("toolhead")
-        X, Y, Z, E = toolhead.get_position()
+        X, Y, Z, E = toolhead.get_position()[:4]
         systime = reactor.monotonic()
         toolhead_info = toolhead.get_status(systime)
         old_max_accel = toolhead_info["max_accel"]

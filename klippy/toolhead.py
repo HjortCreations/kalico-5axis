@@ -27,24 +27,35 @@ class Move:
         self.timing_callbacks = []
         velocity = min(speed, toolhead.max_velocity)
         self.is_kinematic_move = True
-        self.axes_d = axes_d = [end_pos[i] - start_pos[i] for i in (0, 1, 2, 3)]
+        self.axes_d = axes_d = [
+            end_pos[i] - start_pos[i] for i in range(6)
+        ]
         self.move_d = move_d = math.sqrt(sum([d * d for d in axes_d[:3]]))
+        self.has_rotary_move = any(axes_d[i] for i in (4, 5))
         if move_d < 0.000000001:
-            # Extrude only move
-            self.end_pos = (
-                start_pos[0],
-                start_pos[1],
-                start_pos[2],
-                end_pos[3],
-            )
-            axes_d[0] = axes_d[1] = axes_d[2] = 0.0
-            self.move_d = move_d = abs(axes_d[3])
-            inv_move_d = 0.0
-            if move_d:
+            rotary_move_d = math.sqrt(sum([axes_d[i] ** 2 for i in (4, 5)]))
+            if rotary_move_d >= 0.000000001:
+                # For a pure rotary move, feed rate is measured in degrees/s.
+                self.move_d = move_d = rotary_move_d
                 inv_move_d = 1.0 / move_d
-            self.accel = 99999999.9
-            velocity = speed
-            self.is_kinematic_move = False
+            else:
+                # Extrude only move
+                self.end_pos = (
+                    start_pos[0],
+                    start_pos[1],
+                    start_pos[2],
+                    end_pos[3],
+                    start_pos[4],
+                    start_pos[5],
+                )
+                axes_d[0] = axes_d[1] = axes_d[2] = 0.0
+                self.move_d = move_d = abs(axes_d[3])
+                inv_move_d = 0.0
+                if move_d:
+                    inv_move_d = 1.0 / move_d
+                self.accel = 99999999.9
+                velocity = speed
+                self.is_kinematic_move = False
         else:
             inv_move_d = 1.0 / move_d
         self.axes_r = [d * inv_move_d for d in axes_d]
@@ -73,11 +84,23 @@ class Move:
 
     def move_error(self, msg="Move out of range"):
         ep = self.end_pos
-        m = "%s: %.3f %.3f %.3f [%.3f]" % (msg, ep[0], ep[1], ep[2], ep[3])
+        m = "%s: %.3f %.3f %.3f [%.3f] A=%.3f B=%.3f" % (
+            msg,
+            ep[0],
+            ep[1],
+            ep[2],
+            ep[3],
+            ep[4],
+            ep[5],
+        )
         return self.toolhead.printer.command_error(m)
 
     def calc_junction(self, prev_move):
         if not self.is_kinematic_move or not prev_move.is_kinematic_move:
+            return
+        if self.has_rotary_move or prev_move.has_rotary_move:
+            # Rotary junction handling needs a machine-specific cornering
+            # model. Keep the initial implementation conservative.
             return
         # Allow extruder to calculate its maximum junction
         extruder_v2 = self.toolhead.extruder.calc_junction(prev_move, self)
@@ -266,7 +289,7 @@ class ToolHead:
         self.mcu = self.all_mcus[0]
         self.lookahead = LookAheadQueue(self)
         self.lookahead.set_flush_time(BUFFER_TIME_HIGH)
-        self.commanded_pos = [0.0, 0.0, 0.0, 0.0]
+        self.commanded_pos = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         # Velocity and acceleration control
         self.max_velocity = config.getfloat("max_velocity", above=0.0)
         self.max_accel = config.getfloat("max_accel", above=0.0)
@@ -471,9 +494,13 @@ class ToolHead:
                     move.start_pos[0],
                     move.start_pos[1],
                     move.start_pos[2],
+                    move.start_pos[4],
+                    move.start_pos[5],
                     move.axes_r[0],
                     move.axes_r[1],
                     move.axes_r[2],
+                    move.axes_r[4],
+                    move.axes_r[5],
                     move.start_v,
                     move.cruise_v,
                     move.accel,
@@ -597,11 +624,24 @@ class ToolHead:
     def get_position(self):
         return list(self.commanded_pos)
 
+    def _fill_axes(self, newpos):
+        newpos = list(newpos)
+        if len(newpos) < len(self.commanded_pos):
+            newpos.extend(self.commanded_pos[len(newpos) :])
+        return newpos
+
     def set_position(self, newpos, homing_axes=()):
+        newpos = self._fill_axes(newpos)
         self.flush_step_generation()
         ffi_main, ffi_lib = chelper.get_ffi()
         ffi_lib.trapq_set_position(
-            self.trapq, self.print_time, newpos[0], newpos[1], newpos[2]
+            self.trapq,
+            self.print_time,
+            newpos[0],
+            newpos[1],
+            newpos[2],
+            newpos[4],
+            newpos[5],
         )
         self.commanded_pos[:] = newpos
         self.kin.set_position(newpos, homing_axes)
@@ -613,9 +653,14 @@ class ToolHead:
             last_move.limit_next_junction_speed(speed)
 
     def move(self, newpos, speed):
+        newpos = self._fill_axes(newpos)
         move = Move(self, self.commanded_pos, newpos, speed)
         if not move.move_d:
             return
+        if move.has_rotary_move and not getattr(
+            self.kin, "supports_rotary_axes", False
+        ):
+            raise move.move_error("Rotary axes not supported by kinematics")
         if move.is_kinematic_move:
             self.kin.check_move(move)
         if move.axes_d[3]:

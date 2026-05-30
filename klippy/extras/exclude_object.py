@@ -115,7 +115,8 @@ class ExcludeObject:
 
     def get_position(self):
         offset = self._get_extrusion_offsets()
-        pos = self.next_transform.get_position()
+        pos = list(self.next_transform.get_position())
+        self.last_position = list(pos)
         for i in range(4):
             self.last_position[i] = pos[i] + offset[i]
         return list(self.last_position)

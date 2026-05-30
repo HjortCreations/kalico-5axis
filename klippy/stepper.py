@@ -199,15 +199,19 @@ class MCU_stepper:
 
     def calc_position_from_coord(self, coord):
         ffi_main, ffi_lib = chelper.get_ffi()
+        a = coord[4] if len(coord) > 4 else 0.0
+        b = coord[5] if len(coord) > 5 else 0.0
         return ffi_lib.itersolve_calc_position_from_coord(
-            self._stepper_kinematics, coord[0], coord[1], coord[2]
+            self._stepper_kinematics, coord[0], coord[1], coord[2], a, b
         )
 
     def set_position(self, coord):
         mcu_pos = self.get_mcu_position()
         sk = self._stepper_kinematics
         ffi_main, ffi_lib = chelper.get_ffi()
-        ffi_lib.itersolve_set_position(sk, coord[0], coord[1], coord[2])
+        a = coord[4] if len(coord) > 4 else 0.0
+        b = coord[5] if len(coord) > 5 else 0.0
+        ffi_lib.itersolve_set_position(sk, coord[0], coord[1], coord[2], a, b)
         self._set_mcu_position(mcu_pos)
 
     def get_commanded_position(self):
