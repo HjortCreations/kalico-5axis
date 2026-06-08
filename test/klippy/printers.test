@@ -7,6 +7,7 @@ CONFIG ../../config/example-cartesian.cfg
 CONFIG ../../config/example-corexy.cfg
 CONFIG ../../config/example-corexz.cfg
 CONFIG ../../config/example-hybrid-corexy.cfg
+CONFIG ../../config/example-hybrid-corexy-3z-tilt.cfg
 CONFIG ../../config/example-hybrid-corexz.cfg
 CONFIG ../../config/example-delta.cfg
 CONFIG ../../config/example-deltesian.cfg

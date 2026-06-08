@@ -99,7 +99,8 @@ Kalico supports many standard 3d printer features:
 
 * Support for cartesian, delta, corexy, corexz, hybrid-corexy,
   hybrid-corexz, deltesian, rotary delta, polar, and cable winch style
-  printers.
+  printers, including CoreXY and Hybrid-CoreXY three-point bed tilt
+  variants with `A` and `B` rotary axes.
 
 * Automatic bed leveling support. Kalico can be configured for basic
   bed tilt detection or full mesh bed leveling. If the bed uses

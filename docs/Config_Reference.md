@@ -200,8 +200,9 @@ The printer section controls high level printer settings.
 [printer]
 kinematics:
 #   The type of printer in use. This option may be one of: cartesian,
-#   corexy, corexy_3z_tilt, corexz, hybrid_corexy, hybrid_corexz,
-#   rotary_delta, delta, deltesian, polar, winch, or none. This
+#   corexy, corexy_3z_tilt, corexz, hybrid_corexy,
+#   hybrid_corexy_3z_tilt, hybrid_corexz, rotary_delta, delta,
+#   deltesian, polar, winch, or none. This
 #   parameter must be specified.
 max_velocity:
 #   Maximum velocity (in mm/s) of the toolhead (relative to the
@@ -843,6 +844,64 @@ max_z_accel:
 # The stepper_z section is used to describe the stepper controlling
 # the Z axis.
 [stepper_z]
+```
+
+### Hybrid-CoreXY Kinematics with Three-Point Bed Tilt
+
+See
+[example-hybrid-corexy-3z-tilt.cfg](../config/example-hybrid-corexy-3z-tilt.cfg)
+for an example Hybrid-CoreXY printer with a bed moved by exactly three
+independently driven Z motors.
+
+This kinematics combines `hybrid_corexy` XY motion with the CNC-standard
+rotary axes `A` and `B` from `corexy_3z_tilt`. `A` is rotation about X and
+`B` is rotation about Y. Angles are specified in degrees and follow the
+right-hand rule. The virtual `Z` coordinate is the height of the configured
+bed pivot.
+
+```ini
+[printer]
+kinematics: hybrid_corexy_3z_tilt
+invert_kinematics: False
+#   Some hybrid_corexy machines may need to invert the kinematics if the
+#   toolhead moves in reverse. The default is False.
+max_z_velocity:
+#   Maximum velocity (in mm/s) for each Z support motor.
+max_z_accel:
+#   Maximum acceleration (in mm/s^2) for each Z support motor.
+
+[hybrid_corexy_3z_tilt]
+z_positions:
+#   A list of three X,Y coordinates (one per line) describing the location
+#   of each bed support. The order must match stepper_z, stepper_z1, and
+#   stepper_z2.
+pivot_position:
+#   The X,Y coordinate of the virtual bed pivot. XYZ positions are expressed
+#   at this point. The default is the centroid of the three supports.
+max_a: 5.0
+#   Maximum absolute A angle in degrees. The default is 5 degrees.
+max_b: 5.0
+#   Maximum absolute B angle in degrees. The default is 5 degrees.
+max_a_velocity: 5.0
+#   Maximum A velocity in degrees per second. The default is 5 degrees/s.
+max_b_velocity: 5.0
+#   Maximum B velocity in degrees per second. The default is 5 degrees/s.
+max_a_accel: 5.0
+#   Maximum A acceleration in degrees per second squared. The default is 5.
+max_b_accel: 5.0
+#   Maximum B acceleration in degrees per second squared. The default is 5.
+
+# A RatOS-style hybrid gantry typically uses two CoreXY steppers and two
+# Y-assist steppers.
+[stepper_x]
+[stepper_x1]
+[stepper_y]
+[stepper_y1]
+
+# Exactly three Z steppers are required.
+[stepper_z]
+[stepper_z1]
+[stepper_z2]
 ```
 
 ### Hybrid-CoreXZ Kinematics
