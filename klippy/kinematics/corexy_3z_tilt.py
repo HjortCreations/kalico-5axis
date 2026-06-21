@@ -5,7 +5,7 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import math
 
-from klippy import stepper
+from klippy import chelper, stepper
 
 
 class CoreXY3ZTiltKinematics:
@@ -35,6 +35,9 @@ class CoreXY3ZTiltKinematics:
         self.pivot_position = tilt_config.getfloatlist(
             "pivot_position", default_pivot, count=2
         )
+        self.transform_enabled = tilt_config.getchoice(
+            "transform_default", {"pivot": False, "tcp": True}, "pivot"
+        )
         self._validate_support_triangle(config)
 
         # Setup axis rails
@@ -45,16 +48,17 @@ class CoreXY3ZTiltKinematics:
         self.rails[0].setup_itersolve("corexy_stepper_alloc", b"+")
         self.rails[1].setup_itersolve("corexy_stepper_alloc", b"-")
         pivot_x, pivot_y = self.pivot_position
-        for s, (support_x, support_y) in zip(
-            self.z_steppers, self.z_positions
-        ):
+        self.z_stepper_kinematics = []
+        for s, (support_x, support_y) in zip(self.z_steppers, self.z_positions):
             s.setup_itersolve(
                 "corexy_3z_tilt_stepper_alloc",
                 support_x,
                 support_y,
                 pivot_x,
                 pivot_y,
+                self.transform_enabled,
             )
+            self.z_stepper_kinematics.append(s.get_stepper_kinematics())
         for s in self.get_steppers():
             s.set_trapq(toolhead.get_trapq())
             toolhead.register_step_generator(s.generate_steps)
@@ -70,11 +74,10 @@ class CoreXY3ZTiltKinematics:
         self.max_z_accel = config.getfloat(
             "max_z_accel", max_accel, above=0.0, maxval=max_accel
         )
-        self.max_a = tilt_config.getfloat(
-            "max_a", 5.0, above=0.0, maxval=45.0
-        )
-        self.max_b = tilt_config.getfloat(
-            "max_b", 5.0, above=0.0, maxval=45.0
+        self.max_a = tilt_config.getfloat("max_a", 5.0, above=0.0, maxval=45.0)
+        self.max_b = tilt_config.getfloat("max_b", 5.0, above=0.0, maxval=45.0)
+        self.max_combined_tilt = tilt_config.getfloat(
+            "max_combined_tilt", None, above=0.0, maxval=45.0
         )
         self.max_a_velocity = tilt_config.getfloat(
             "max_a_velocity", 5.0, above=0.0
@@ -82,12 +85,8 @@ class CoreXY3ZTiltKinematics:
         self.max_b_velocity = tilt_config.getfloat(
             "max_b_velocity", 5.0, above=0.0
         )
-        self.max_a_accel = tilt_config.getfloat(
-            "max_a_accel", 5.0, above=0.0
-        )
-        self.max_b_accel = tilt_config.getfloat(
-            "max_b_accel", 5.0, above=0.0
-        )
+        self.max_a_accel = tilt_config.getfloat("max_a_accel", 5.0, above=0.0)
+        self.max_b_accel = tilt_config.getfloat("max_b_accel", 5.0, above=0.0)
         self.limits = [(1.0, -1.0)] * 3
         ranges = [r.get_range() for r in self.rails]
         self.axes_min = toolhead.Coord(
@@ -108,12 +107,12 @@ class CoreXY3ZTiltKinematics:
         )
         self.supports_dual_carriage = False
         self.supports_rotary_axes = True
+        self.toolhead = toolhead
+        self._register_transform_commands(config.get_printer())
 
     def _validate_support_triangle(self, config):
         (x0, y0), (x1, y1), (x2, y2) = self.z_positions
-        self.support_determinant = (
-            (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
-        )
+        self.support_determinant = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
         if abs(self.support_determinant) < 0.000001:
             raise config.error(
                 "corexy_3z_tilt z_positions must form a triangle"
@@ -122,12 +121,23 @@ class CoreXY3ZTiltKinematics:
     def get_steppers(self):
         return [s for rail in self.rails for s in rail.get_steppers()]
 
+    def _surface_offset(self, position):
+        pivot_x, pivot_y = self.pivot_position
+        a = math.radians(position[4])
+        b = math.radians(position[5])
+        return (position[1] - pivot_y) * math.tan(a) / math.cos(b) - (
+            position[0] - pivot_x
+        ) * math.tan(b)
+
     def _get_support_heights(self, position):
         pivot_x, pivot_y = self.pivot_position
         a = math.radians(position[4])
         b = math.radians(position[5])
+        pivot_z = position[2]
+        if getattr(self, "transform_enabled", False):
+            pivot_z -= self._surface_offset(position)
         return [
-            position[2]
+            pivot_z
             + (support_y - pivot_y) * math.tan(a) / math.cos(b)
             - (support_x - pivot_x) * math.tan(b)
             for support_x, support_y in self.z_positions
@@ -138,30 +148,65 @@ class CoreXY3ZTiltKinematics:
         pivot_x, pivot_y = self.pivot_position
         h0, h1, h2 = heights
         determinant = self.support_determinant
-        slope_x = (
-            (h1 - h0) * (y2 - y0) - (h2 - h0) * (y1 - y0)
-        ) / determinant
-        slope_y = (
-            (x1 - x0) * (h2 - h0) - (x2 - x0) * (h1 - h0)
-        ) / determinant
+        slope_x = ((h1 - h0) * (y2 - y0) - (h2 - h0) * (y1 - y0)) / determinant
+        slope_y = ((x1 - x0) * (h2 - h0) - (x2 - x0) * (h1 - h0)) / determinant
         z = h0 - slope_x * (x0 - pivot_x) - slope_y * (y0 - pivot_y)
         b = math.atan(-slope_x)
         a = math.atan(slope_y * math.cos(b))
         return z, math.degrees(a), math.degrees(b)
 
     def calc_position(self, stepper_positions):
-        xy_pos = [
-            stepper_positions[self.rails[i].get_name()] for i in (0, 1)
-        ]
+        xy_pos = [stepper_positions[self.rails[i].get_name()] for i in (0, 1)]
         heights = [stepper_positions[s.get_name()] for s in self.z_steppers]
         z, a, b = self._get_bed_pose(heights)
-        return [
-            0.5 * (xy_pos[0] + xy_pos[1]),
-            0.5 * (xy_pos[0] - xy_pos[1]),
-            z,
-            a,
-            b,
-        ]
+        x = 0.5 * (xy_pos[0] + xy_pos[1])
+        y = 0.5 * (xy_pos[0] - xy_pos[1])
+        position = [x, y, z, 0.0, a, b]
+        if self.transform_enabled:
+            position[2] += self._surface_offset(position)
+        return position[:3] + position[4:]
+
+    def _register_transform_commands(self, printer):
+        gcode = printer.lookup_object("gcode")
+        gcode.register_command("G43.4", self.cmd_G43_4)
+        gcode.register_command("G49", self.cmd_G49)
+        gcode.register_command(
+            "SET_TILT_TRANSFORM",
+            self.cmd_SET_TILT_TRANSFORM,
+            desc=self.cmd_SET_TILT_TRANSFORM_help,
+        )
+
+    def _set_transform(self, enabled):
+        if enabled == self.transform_enabled:
+            return
+        self.toolhead.flush_step_generation()
+        position = self.toolhead.get_position()
+        new_position = list(position)
+        offset = self._surface_offset(position)
+        new_position[2] += offset if enabled else -offset
+        _, ffi_lib = chelper.get_ffi()
+        for sk in self.z_stepper_kinematics:
+            ffi_lib.corexy_3z_tilt_stepper_set_transform(sk, enabled)
+        self.transform_enabled = enabled
+        # Rebase logical Z so changing mode never moves a motor.
+        self.toolhead.set_position(new_position)
+
+    def cmd_G43_4(self, gcmd):
+        self._set_transform(True)
+        gcmd.respond_info("Tilt transform enabled (TCP mode)")
+
+    def cmd_G49(self, gcmd):
+        self._set_transform(False)
+        gcmd.respond_info("Tilt transform disabled (pivot mode)")
+
+    cmd_SET_TILT_TRANSFORM_help = "Select TCP or pivot bed-tilt coordinates"
+
+    def cmd_SET_TILT_TRANSFORM(self, gcmd):
+        mode = gcmd.get("MODE").upper()
+        if mode not in ("TCP", "PIVOT"):
+            raise gcmd.error("MODE must be TCP or PIVOT")
+        self._set_transform(mode == "TCP")
+        gcmd.respond_info("Tilt transform mode: %s" % (mode,))
 
     def set_position(self, newpos, homing_axes):
         for rail in self.rails:
@@ -207,9 +252,14 @@ class CoreXY3ZTiltKinematics:
     def _check_endstops(self, move):
         end_pos = move.end_pos
         for i in (0, 1, 2):
+            if i == 2 and self.transform_enabled:
+                if self.limits[i][0] > self.limits[i][1]:
+                    raise move.move_error("Must home Z axis first")
+                # In TCP mode logical Z is local surface height. The actual
+                # support ranges are checked by _check_support_range().
+                continue
             if move.axes_d[i] and (
-                end_pos[i] < self.limits[i][0]
-                or end_pos[i] > self.limits[i][1]
+                end_pos[i] < self.limits[i][0] or end_pos[i] > self.limits[i][1]
             ):
                 if self.limits[i][0] > self.limits[i][1]:
                     raise move.move_error("Must home axis first")
@@ -230,22 +280,27 @@ class CoreXY3ZTiltKinematics:
         ):
             # Homing deliberately starts outside the configured range.
             return
-        max_a = math.radians(
-            max(abs(move.start_pos[4]), abs(move.end_pos[4]))
-        )
-        max_b = math.radians(
-            max(abs(move.start_pos[5]), abs(move.end_pos[5]))
-        )
+        max_a = math.radians(max(abs(move.start_pos[4]), abs(move.end_pos[4])))
+        max_b = math.radians(max(abs(move.start_pos[5]), abs(move.end_pos[5])))
         min_z = min(move.start_pos[2], move.end_pos[2])
         max_z = max(move.start_pos[2], move.end_pos[2])
         pivot_x, pivot_y = self.pivot_position
         for support_x, support_y in self.z_positions:
-            dx = support_x - pivot_x
-            dy = support_y - pivot_y
-            offset_limit = (
-                abs(dy) * math.tan(max_a) / math.cos(max_b)
-                + abs(dx) * math.tan(max_b)
-            )
+            if self.transform_enabled:
+                dx = max(
+                    abs(support_x - move.start_pos[0]),
+                    abs(support_x - move.end_pos[0]),
+                )
+                dy = max(
+                    abs(support_y - move.start_pos[1]),
+                    abs(support_y - move.end_pos[1]),
+                )
+            else:
+                dx = abs(support_x - pivot_x)
+                dy = abs(support_y - pivot_y)
+            offset_limit = dy * math.tan(max_a) / math.cos(
+                max_b
+            ) + dx * math.tan(max_b)
             if (
                 min_z - offset_limit < position_min
                 or max_z + offset_limit > position_max
@@ -261,39 +316,56 @@ class CoreXY3ZTiltKinematics:
     def _get_max_support_derivatives(self, move, support_position):
         pivot_x, pivot_y = self.pivot_position
         support_x, support_y = support_position
-        dx = abs(support_x - pivot_x)
-        dy = abs(support_y - pivot_y)
+        if self.transform_enabled:
+            dx = max(
+                abs(support_x - move.start_pos[0]),
+                abs(support_x - move.end_pos[0]),
+            )
+            dy = max(
+                abs(support_y - move.start_pos[1]),
+                abs(support_y - move.end_pos[1]),
+            )
+        else:
+            dx = abs(support_x - pivot_x)
+            dy = abs(support_y - pivot_y)
         max_a = math.radians(self.max_a)
         max_b = math.radians(self.max_b)
         a_ratio = abs(math.radians(move.axes_r[4]))
         b_ratio = abs(math.radians(move.axes_r[5]))
         z_ratio = abs(move.axes_r[2])
+        x_ratio = abs(move.axes_r[0]) if self.transform_enabled else 0.0
+        y_ratio = abs(move.axes_r[1]) if self.transform_enabled else 0.0
         tan_a = math.tan(max_a)
         tan_b = math.tan(max_b)
         sec_a = 1.0 / math.cos(max_a)
         sec_b = 1.0 / math.cos(max_b)
         slope = (
             z_ratio
+            + y_ratio * tan_a * sec_b
+            + x_ratio * tan_b
             + dy
-            * (
-                sec_a**2 * sec_b * a_ratio
-                + tan_a * sec_b * tan_b * b_ratio
-            )
+            * (sec_a**2 * sec_b * a_ratio + tan_a * sec_b * tan_b * b_ratio)
             + dx * sec_b**2 * b_ratio
         )
         curvature = (
-            dy
+            2.0
+            * y_ratio
+            * (sec_a**2 * sec_b * a_ratio + tan_a * sec_b * tan_b * b_ratio)
+            + 2.0 * x_ratio * sec_b**2 * b_ratio
+            + dy
             * (
                 2.0 * sec_a**2 * tan_a * sec_b * a_ratio**2
                 + 2.0 * sec_a**2 * sec_b * tan_b * a_ratio * b_ratio
-                + tan_a
-                * sec_b
-                * (tan_b**2 + sec_b**2)
-                * b_ratio**2
+                + tan_a * sec_b * (tan_b**2 + sec_b**2) * b_ratio**2
             )
             + dx * 2.0 * sec_b**2 * tan_b * b_ratio**2
         )
         return slope, curvature
+
+    def _combined_tilt(self, a, b):
+        cosine = math.cos(math.radians(a)) * math.cos(math.radians(b))
+        cosine = max(-1.0, min(1.0, cosine))
+        return math.degrees(math.acos(cosine))
 
     def _limit_support_speed(self, move, support_position):
         slope, curvature = self._get_max_support_derivatives(
@@ -324,19 +396,22 @@ class CoreXY3ZTiltKinematics:
         a, b = move.end_pos[4:6]
         if abs(a) > self.max_a or abs(b) > self.max_b:
             raise move.move_error("Bed tilt angle out of range")
-        if not any(move.axes_d[i] for i in (2, 4, 5)):
+        if self.max_combined_tilt is not None and any(
+            self._combined_tilt(position[4], position[5])
+            > self.max_combined_tilt
+            for position in (move.start_pos, move.end_pos)
+        ):
+            raise move.move_error("Combined bed tilt angle out of range")
+        support_axes = (0, 1, 2, 4, 5) if self.transform_enabled else (2, 4, 5)
+        if not any(move.axes_d[i] for i in support_axes):
             return
         if self.limits[2][0] > self.limits[2][1]:
             raise move.move_error("Must home Z axis before tilting bed")
         self._check_endstops(move)
         self._check_support_range(move)
 
-        self._limit_axis_speed(
-            move, 4, self.max_a_velocity, self.max_a_accel
-        )
-        self._limit_axis_speed(
-            move, 5, self.max_b_velocity, self.max_b_accel
-        )
+        self._limit_axis_speed(move, 4, self.max_a_velocity, self.max_a_accel)
+        self._limit_axis_speed(move, 5, self.max_b_velocity, self.max_b_accel)
         for support_position in self.z_positions:
             self._limit_support_speed(move, support_position)
 
@@ -348,6 +423,8 @@ class CoreXY3ZTiltKinematics:
             "axis_maximum": self.axes_max,
             "pivot_position": self.pivot_position,
             "z_positions": self.z_positions,
+            "transform_mode": "tcp" if self.transform_enabled else "pivot",
+            "max_combined_tilt": self.max_combined_tilt,
         }
 
 

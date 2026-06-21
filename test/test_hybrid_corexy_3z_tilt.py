@@ -32,11 +32,27 @@ def make_kinematics(inverted=False):
     kin.z_positions = ((0.0, 0.0), (300.0, 0.0), (150.0, 300.0))
     kin.pivot_position = (150.0, 150.0)
     (x0, y0), (x1, y1), (x2, y2) = kin.z_positions
-    kin.support_determinant = (
-        (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
-    )
+    kin.support_determinant = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
     kin.inverted = inverted
+    kin.transform_enabled = False
     return kin
+
+
+def test_calc_position_reports_tcp_surface_height():
+    kin = make_kinematics()
+    kin.transform_enabled = True
+    position = [40.0, 10.0, 120.0, 0.0, 3.0, -2.0]
+    h0, h1, h2 = kin._get_support_heights(position)
+    stepper_positions = {
+        "stepper_x": 30.0,
+        "stepper_y": 10.0,
+        "stepper_z": h0,
+        "stepper_z1": h1,
+        "stepper_z2": h2,
+    }
+    assert kin.calc_position(stepper_positions) == pytest.approx(
+        [40.0, 10.0, 120.0, 3.0, -2.0]
+    )
 
 
 def test_calc_position_matches_hybrid_corexy():

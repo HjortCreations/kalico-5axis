@@ -26,8 +26,7 @@ class HybridCoreXY3ZTiltKinematics(CoreXY3ZTiltKinematics):
         )
         if len(self.z_positions) != 3:
             raise config.error(
-                "hybrid_corexy_3z_tilt z_positions requires exactly "
-                "three items"
+                "hybrid_corexy_3z_tilt z_positions requires exactly three items"
             )
         default_pivot = tuple(
             sum(position[i] for position in self.z_positions) / 3.0
@@ -35,6 +34,9 @@ class HybridCoreXY3ZTiltKinematics(CoreXY3ZTiltKinematics):
         )
         self.pivot_position = tilt_config.getfloatlist(
             "pivot_position", default_pivot, count=2
+        )
+        self.transform_enabled = tilt_config.getchoice(
+            "transform_default", {"pivot": False, "tcp": True}, "pivot"
         )
         self._validate_support_triangle(config)
 
@@ -51,16 +53,17 @@ class HybridCoreXY3ZTiltKinematics(CoreXY3ZTiltKinematics):
         self.rails[1].setup_itersolve("cartesian_stepper_alloc", b"y")
 
         pivot_x, pivot_y = self.pivot_position
-        for s, (support_x, support_y) in zip(
-            self.z_steppers, self.z_positions
-        ):
+        self.z_stepper_kinematics = []
+        for s, (support_x, support_y) in zip(self.z_steppers, self.z_positions):
             s.setup_itersolve(
                 "corexy_3z_tilt_stepper_alloc",
                 support_x,
                 support_y,
                 pivot_x,
                 pivot_y,
+                self.transform_enabled,
             )
+            self.z_stepper_kinematics.append(s.get_stepper_kinematics())
         for s in self.get_steppers():
             s.set_trapq(toolhead.get_trapq())
             toolhead.register_step_generator(s.generate_steps)
@@ -75,11 +78,10 @@ class HybridCoreXY3ZTiltKinematics(CoreXY3ZTiltKinematics):
         self.max_z_accel = config.getfloat(
             "max_z_accel", max_accel, above=0.0, maxval=max_accel
         )
-        self.max_a = tilt_config.getfloat(
-            "max_a", 5.0, above=0.0, maxval=45.0
-        )
-        self.max_b = tilt_config.getfloat(
-            "max_b", 5.0, above=0.0, maxval=45.0
+        self.max_a = tilt_config.getfloat("max_a", 5.0, above=0.0, maxval=45.0)
+        self.max_b = tilt_config.getfloat("max_b", 5.0, above=0.0, maxval=45.0)
+        self.max_combined_tilt = tilt_config.getfloat(
+            "max_combined_tilt", None, above=0.0, maxval=45.0
         )
         self.max_a_velocity = tilt_config.getfloat(
             "max_a_velocity", 5.0, above=0.0
@@ -87,12 +89,8 @@ class HybridCoreXY3ZTiltKinematics(CoreXY3ZTiltKinematics):
         self.max_b_velocity = tilt_config.getfloat(
             "max_b_velocity", 5.0, above=0.0
         )
-        self.max_a_accel = tilt_config.getfloat(
-            "max_a_accel", 5.0, above=0.0
-        )
-        self.max_b_accel = tilt_config.getfloat(
-            "max_b_accel", 5.0, above=0.0
-        )
+        self.max_a_accel = tilt_config.getfloat("max_a_accel", 5.0, above=0.0)
+        self.max_b_accel = tilt_config.getfloat("max_b_accel", 5.0, above=0.0)
         self.limits = [(1.0, -1.0)] * 3
         ranges = [r.get_range() for r in self.rails]
         self.axes_min = toolhead.Coord(
@@ -113,6 +111,8 @@ class HybridCoreXY3ZTiltKinematics(CoreXY3ZTiltKinematics):
         )
         self.supports_dual_carriage = False
         self.supports_rotary_axes = True
+        self.toolhead = toolhead
+        self._register_transform_commands(config.get_printer())
 
     def calc_position(self, stepper_positions):
         x_rail_pos = stepper_positions[self.rails[0].get_name()]
@@ -123,7 +123,10 @@ class HybridCoreXY3ZTiltKinematics(CoreXY3ZTiltKinematics):
             x_pos = x_rail_pos - y_pos
         else:
             x_pos = x_rail_pos + y_pos
-        return [x_pos, y_pos, z, a, b]
+        position = [x_pos, y_pos, z, 0.0, a, b]
+        if self.transform_enabled:
+            position[2] += self._surface_offset(position)
+        return position[:3] + position[4:]
 
 
 def load_kinematics(toolhead, config):

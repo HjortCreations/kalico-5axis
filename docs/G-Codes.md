@@ -332,6 +332,27 @@ conjunction with other calibration commands to store the results of
 calibration tests.
 If RESTART is set to 0, no restart will be performed !!USE WITH CAUTION!!.
 
+### [corexy_3z_tilt]
+
+The following commands are available when either `corexy_3z_tilt` or
+`hybrid_corexy_3z_tilt` kinematics is configured.
+
+#### SET_TILT_TRANSFORM
+`SET_TILT_TRANSFORM MODE=<TCP|PIVOT>`: Select the bed-tilt coordinate
+transform. In `PIVOT` mode, Z is the bed height at `pivot_position`. In `TCP`
+mode, Z is the bed surface height at the current XY position and the three Z
+supports compensate during XY motion. Changing mode rebases logical Z without
+moving any motor.
+
+`G43.4` is the CNC-style alias for `SET_TILT_TRANSFORM MODE=TCP`. `G49` selects
+`PIVOT` mode.
+
+> **Bed mesh safety:** Existing `bed_mesh` profiles do not store A/B angles or
+> transform mode. Run `BED_MESH_CLEAR` before changing A or B. If mesh
+> compensation is needed on a tilted bed, set A/B first, run
+> `BED_MESH_CALIBRATE`, and keep both angles fixed while that mesh is active.
+> Do not load a mesh that was calibrated at different A/B angles.
+
 ### [delayed_gcode]
 
 The following command is enabled if a

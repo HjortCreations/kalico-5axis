@@ -27,9 +27,7 @@ class Move:
         self.timing_callbacks = []
         velocity = min(speed, toolhead.max_velocity)
         self.is_kinematic_move = True
-        self.axes_d = axes_d = [
-            end_pos[i] - start_pos[i] for i in range(6)
-        ]
+        self.axes_d = axes_d = [end_pos[i] - start_pos[i] for i in range(6)]
         self.move_d = move_d = math.sqrt(sum([d * d for d in axes_d[:3]]))
         self.has_rotary_move = any(axes_d[i] for i in (4, 5))
         if move_d < 0.000000001:
