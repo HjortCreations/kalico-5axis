@@ -663,6 +663,12 @@ moves, `F` is interpreted as degrees per minute. For combined linear and
 rotary moves, `F` is interpreted as millimeters per minute and the rotary
 velocity limits are applied separately.
 
+`bed_mesh` profiles are not aware of the A/B angles or the selected transform
+mode. Until angle-aware mesh profiles are implemented, run `BED_MESH_CLEAR`
+before changing A or B. Set the target angles first, recalibrate the mesh at
+those angles if mesh compensation is required, and keep A and B unchanged
+while that mesh is active. Do not reuse a saved mesh at different A/B angles.
+
 ```
 [printer]
 kinematics: corexy_3z_tilt
@@ -868,6 +874,9 @@ rotary axes `A` and `B` from `corexy_3z_tilt`. `A` is rotation about X and
 `B` is rotation about Y. Angles are specified in degrees and follow the
 right-hand rule. The virtual `Z` coordinate follows the selected `pivot` or
 `tcp` transform as described for `corexy_3z_tilt` above.
+
+The same `BED_MESH_CLEAR` requirement applies before changing A or B. A mesh
+may only be used at the fixed A/B angles where it was calibrated.
 
 ```ini
 [printer]

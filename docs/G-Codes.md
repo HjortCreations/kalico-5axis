@@ -347,6 +347,12 @@ moving any motor.
 `G43.4` is the CNC-style alias for `SET_TILT_TRANSFORM MODE=TCP`. `G49` selects
 `PIVOT` mode.
 
+> **Bed mesh safety:** Existing `bed_mesh` profiles do not store A/B angles or
+> transform mode. Run `BED_MESH_CLEAR` before changing A or B. If mesh
+> compensation is needed on a tilted bed, set A/B first, run
+> `BED_MESH_CALIBRATE`, and keep both angles fixed while that mesh is active.
+> Do not load a mesh that was calibrated at different A/B angles.
+
 ### [delayed_gcode]
 
 The following command is enabled if a
