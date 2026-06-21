@@ -655,11 +655,13 @@ driven Z motors.
 
 This kinematics adds the CNC-standard rotary axes `A` and `B` to `G0` and
 `G1` moves. `A` is rotation about X and `B` is rotation about Y. Angles are
-specified in degrees and follow the right-hand rule. The virtual `Z`
-coordinate is the height of the configured bed pivot. For pure rotary moves,
-`F` is interpreted as degrees per minute. For combined linear and rotary
-moves, `F` is interpreted as millimeters per minute and the rotary velocity
-limits are applied separately.
+specified in degrees and follow the right-hand rule. In `pivot` transform
+mode, the virtual `Z` coordinate is the height of the configured bed pivot.
+In `tcp` mode, `Z` is the height of the tilted bed surface at the current
+`X,Y` position, so the Z supports compensate during XY moves. For pure rotary
+moves, `F` is interpreted as degrees per minute. For combined linear and
+rotary moves, `F` is interpreted as millimeters per minute and the rotary
+velocity limits are applied separately.
 
 ```
 [printer]
@@ -681,6 +683,14 @@ max_a: 5.0
 #   Maximum absolute A angle in degrees. The default is 5 degrees.
 max_b: 5.0
 #   Maximum absolute B angle in degrees. The default is 5 degrees.
+max_combined_tilt:
+#   Optional maximum resultant bed angle in degrees. This protects articulated
+#   Z couplings when simultaneous A and B motion would exceed their angular
+#   limit. If omitted, only max_a and max_b are enforced.
+transform_default: pivot
+#   Coordinate transform selected at startup. May be `pivot` or `tcp`. The
+#   default is `pivot`. Use G43.4, G49, or SET_TILT_TRANSFORM to change it at
+#   runtime without moving the motors.
 max_a_velocity: 5.0
 #   Maximum A velocity in degrees per second. The default is 5 degrees/s.
 max_b_velocity: 5.0
@@ -856,8 +866,8 @@ independently driven Z motors.
 This kinematics combines `hybrid_corexy` XY motion with the CNC-standard
 rotary axes `A` and `B` from `corexy_3z_tilt`. `A` is rotation about X and
 `B` is rotation about Y. Angles are specified in degrees and follow the
-right-hand rule. The virtual `Z` coordinate is the height of the configured
-bed pivot.
+right-hand rule. The virtual `Z` coordinate follows the selected `pivot` or
+`tcp` transform as described for `corexy_3z_tilt` above.
 
 ```ini
 [printer]
@@ -882,6 +892,14 @@ max_a: 5.0
 #   Maximum absolute A angle in degrees. The default is 5 degrees.
 max_b: 5.0
 #   Maximum absolute B angle in degrees. The default is 5 degrees.
+max_combined_tilt:
+#   Optional maximum resultant bed angle in degrees. This protects articulated
+#   Z couplings during combined A and B motion. If omitted, only max_a and
+#   max_b are enforced.
+transform_default: pivot
+#   Coordinate transform selected at startup. May be `pivot` or `tcp`. The
+#   default is `pivot`. Use G43.4, G49, or SET_TILT_TRANSFORM to change it at
+#   runtime without moving the motors.
 max_a_velocity: 5.0
 #   Maximum A velocity in degrees per second. The default is 5 degrees/s.
 max_b_velocity: 5.0

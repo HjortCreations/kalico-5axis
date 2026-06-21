@@ -139,7 +139,10 @@ defs_kin_corexy = """
 
 defs_kin_corexy_3z_tilt = """
     struct stepper_kinematics *corexy_3z_tilt_stepper_alloc(
-        double support_x, double support_y, double pivot_x, double pivot_y);
+        double support_x, double support_y, double pivot_x, double pivot_y
+        , int transform_enabled);
+    void corexy_3z_tilt_stepper_set_transform(
+        struct stepper_kinematics *sk, int transform_enabled);
 """
 
 defs_kin_corexz = """
