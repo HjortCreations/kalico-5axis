@@ -2,21 +2,6 @@ name: Klipper Container Build and Push
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    # This should mirror the klipper paths-filter in ci-build_test.yaml
-    paths:
-      - "Makefile"
-      - "pyproject.toml"
-      - "src/**"
-      - "lib/**"
-      - "test/configs/**"
-      - "scripts/Dockerfile-build"
-      - "scripts/buildcommands.py"
-      - "scripts/check-gcc.sh"
-      - "scripts/ci-build.sh"
-      - ".github/workflows/ci-builder.yaml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
