@@ -6,6 +6,14 @@ Three independently driven Z supports control bed height and two tilt angles. Th
 
 > **Experimental firmware snapshot.** This is a motion-control foundation for developers and experienced machine builders. It does not include a five-axis slicer or an automatic collision-free printing workflow. Hardware and print performance must be validated for each machine.
 
+## Watch the motion demo
+
+See the prototype in motion on a modified RatRig. Click the image to watch the YouTube Short.
+
+[![Watch the Kalico 5axis RatRig motion demonstration on YouTube](https://img.youtube.com/vi/lVaLsss57z0/hqdefault.jpg)](https://www.youtube.com/shorts/lVaLsss57z0)
+
+[Watch on YouTube](https://www.youtube.com/shorts/lVaLsss57z0)
+
 ## Project status
 
 Further development by Hjort Creations is paused. This work is shared as open source so that other developers, researchers and machine builders can explore it and decide whether to take it further. There is no promised release schedule, ongoing support or slicer development commitment.
