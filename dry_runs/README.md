@@ -42,6 +42,21 @@ configuration and support `G43.4` (TCP mode) and `G49` (pivot mode).
    the commanded tilt and travel.
 5. Be ready to trigger the emergency stop throughout the run.
 
+Before starting, run `BED_MESH_CLEAR` manually if bed mesh is configured.
+The file changes A/B and transform modes but does not clear a mesh itself.
+Do not let a start macro reload a saved mesh during the demonstration.
+
+This is a motion demonstration, not a five-axis print. Machine compatibility
+and a successful physical run are not established by the presence of this
+file. For the project's coordinate model and limitations, read the
+[5-axis guide](../docs/5axis.md).
+
+The file changes positioning/extrusion modes, fan state and velocity limits.
+It ends in pivot mode and repeats its chosen velocity limits; it does not
+restore the previous settings. Check and restore the machine's intended
+operating state before the next job. Its opening move assumes adequate
+clearance in the already-homed starting pose.
+
 The test begins near the center of the assumed 200 × 200 mm work area, runs
 conservative XYZ and tilt patterns, tests TCP motion, and returns to a neutral
 centered position.
