@@ -1,7 +1,7 @@
 # Contributing to Kalico 5axis
 
 Hjort Creations development on this experimental variant is paused. The
-existing work is being prepared for public investigation and reuse. There
+existing work is shared for public investigation and reuse. There
 is no promised response time, roadmap, release cadence or slicer project.
 
 You are welcome to study the code, report reproducible findings and develop

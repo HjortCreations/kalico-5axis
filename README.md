@@ -8,7 +8,7 @@ Three independently driven Z supports control bed height and two tilt angles. Th
 
 ## Project status
 
-Further development by Hjort Creations is paused. We are preparing this work for public reuse so that other developers, researchers and machine builders can explore it and decide whether to take it further. There is no promised release schedule, ongoing support or slicer development commitment.
+Further development by Hjort Creations is paused. This work is shared as open source so that other developers, researchers and machine builders can explore it and decide whether to take it further. There is no promised release schedule, ongoing support or slicer development commitment.
 
 Existing tests and a machine-specific motion dry run are included. Automated checks exercise software behavior; they do not certify a printer or demonstrate successful five-axis extrusion.
 
