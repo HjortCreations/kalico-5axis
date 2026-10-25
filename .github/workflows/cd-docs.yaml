@@ -2,12 +2,7 @@ name: Docs deployment
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - docs/**
-      - .github/workflows/cd-docs.yaml
+  # Publishing this variant's documentation is an explicit manual action.
 
 jobs:
   deploy:

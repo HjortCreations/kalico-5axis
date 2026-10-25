@@ -90,6 +90,7 @@ extra:
 # Navigation hierarchy (this should mimic the layout of Overview.md)
 nav:
   - Home: index.md
+  - Kalico 5axis: 5axis.md
   - Overview.md
   - Features.md
   - FAQ.md

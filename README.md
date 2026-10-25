@@ -1,255 +1,53 @@
-<p align="center"><a href="https://docs.kalico.gg"><img align="center" src="docs/logo/kalico-big.png" alt="Kalico Logo"></a></p>
+# Kalico 5axis
 
-[![Action Status](https://github.com/KalicoCrew/kalico/actions/workflows/ci-build_test.yaml/badge.svg?branch=main)](https://github.com/KalicoCrew/kalico/actions/workflows/ci-build_test.yaml)
+Experimental XYZAB motion control for CoreXY and Hybrid-CoreXY printers with a three-point tilting bed, by Hjort Creations. Built on [Kalico](https://github.com/KalicoCrew/kalico), a community fork of [Klipper](https://github.com/Klipper3d/klipper).
 
-# Welcome to the Kalico project!
+Three independently driven Z supports control bed height and two tilt angles. This project adds coordinated `X Y Z A B` moves and a selectable bed-plane compensation mode to explore that motion on suitable hardware.
 
-This is a community-maintained fork of the [Klipper](https://github.com/Klipper3d/klipper) firmware.
+> **Experimental firmware snapshot.** This is a motion-control foundation for developers and experienced machine builders. It does not include a five-axis slicer or an automatic collision-free printing workflow. Hardware and print performance must be validated for each machine.
 
-Our goal is to support features and behavior that could be "risky" if used incorrectly.
+## Project status
 
-If I want my printer to light itself on fire, I should be able to make my printer light itself on fire.
+Further development by Hjort Creations is paused. We are preparing this work for public reuse so that other developers, researchers and machine builders can explore it and decide whether to take it further. There is no promised release schedule, ongoing support or slicer development commitment.
 
-See the [Kalico Additions document](https://docs.kalico.gg/Kalico_Additions.html) for more information on *some* of the differences from Klipper.
+Existing tests and a machine-specific motion dry run are included. Automated checks exercise software behavior; they do not certify a printer or demonstrate successful five-axis extrusion.
 
-## Features merged into the main branch:
+## What is included
 
-- [core: no Python2 tests; no PRU boards](https://github.com/KalicoCrew/kalico/pull/39)
+- `corexy_3z_tilt` and `hybrid_corexy_3z_tilt` kinematics for exactly three independently driven Z supports.
+- A and B tilt commands in `G0`/`G1`, with axis, combined-tilt and Z-support motion limits configurable for the machine.
+- **Pivot mode:** Z describes bed height at a configured virtual pivot.
+- **TCP mode:** Z describes tilted bed-plane height at the current X/Y location; the Z supports compensate as X/Y changes.
+- Example configurations, configuration and G-code references, regression tests, and an existing motion-only demonstration for a modified RatRig V-Core 3.1 200 mm.
 
-- [core: git-untracked folder, plugins for user-plugins](https://github.com/KalicoCrew/kalico/pull/82)
+TCP here means bed-plane height compensation. It is not a general tool-center-point transformation of an entire 3D workpiece, and does not turn ordinary slicer output into five-axis toolpaths.
 
-- [core: danger_options](https://github.com/KalicoCrew/kalico/pull/67)
+## Start here
 
-- [core: rotate log file at every restart](https://github.com/KalicoCrew/kalico/pull/181)
+| Resource | Purpose |
+| --- | --- |
+| [5-axis guide](docs/5axis.md) | Hardware requirements, coordinate conventions, setup, limitations and validation |
+| [CoreXY example](config/example-corexy-3z-tilt.cfg) | Configuration structure; adapt all pins, geometry and limits |
+| [Hybrid-CoreXY example](config/example-hybrid-corexy-3z-tilt.cfg) | Configuration structure for a hybrid gantry |
+| [Configuration reference](docs/Config_Reference.md#corexy-kinematics-with-three-point-bed-tilt) | Detailed CoreXY parameters; Hybrid-CoreXY has its own section in the same reference |
+| [G-code reference](docs/G-Codes.md#corexy_3z_tilt) | Transform commands and bed-mesh restrictions |
+| [Motion dry run](dry_runs/README.md) | Existing machine-specific demonstration, without heating or extrusion |
+| [Contributing](CONTRIBUTING.md) | Reuse, issue reports and the project's paused maintenance status |
 
-- [core: options for API server socket file mode, user, and group](https://github.com/KalicoCrew/kalico/pull/612)
+Read the guide before installing or running anything. A printer having three Z motors is not enough: its supports, joints, guides, cables and toolhead clearance must permit intentional bed tilt.
 
-- [core: options to change mode and group of linux mcu psuedoterminal](https://github.com/KalicoCrew/kalico/pull/692)
+## Current boundaries
 
-- [fan: normalising Fan PWM power](https://github.com/KalicoCrew/kalico/pull/44) ([klipper#6307](https://github.com/Klipper3d/klipper/pull/6307))
+- No five-axis slicer, toolpath generator, collision simulation or automatic orientation planning is included.
+- Bed mesh is not angle-aware. Clear it **before** changing A/B; a mesh calibrated at one angle must not be reused at another.
+- Example configurations are not ready-to-install printer profiles. The dry run targets a different, specific geometry and limit set.
+- Machine-specific homing, leveling, probes, macros and other extensions require separate validation.
+- Potential printing benefits such as fewer supports, smoother surfaces or stronger parts remain application-dependent goals, not demonstrated results of this snapshot.
 
-- [fan: reverse FAN](https://github.com/KalicoCrew/kalico/pull/51) ([klipper#4983](https://github.com/Klipper3d/klipper/pull/4983))
+## Credits and license
 
-- [heaters: modify PID without reload](https://github.com/KalicoCrew/kalico/pull/35)
+The 5-axis additions build on the work of the Kalico and Klipper communities. This repository is an independent Hjort Creations variant; it is not an official Kalico, Klipper or RatRig release.
 
-- [heaters: MPC temperature control](https://github.com/KalicoCrew/kalico/pull/333)
+The repository retains the GNU GPLv3 license in [COPYING](COPYING), existing copyright notices and third-party license files. Keep those notices with redistributed code and consult the applicable license files for individual components.
 
-- [heaters: velocity PID](https://github.com/KalicoCrew/kalico/pull/47) ([klipper#6272](https://github.com/Klipper3d/klipper/pull/6272))
-
-- [heaters: PID-Profiles](https://github.com/KalicoCrew/kalico/pull/162)
-
-- [heaters: expose heater thermistor out of min/max](https://github.com/KalicoCrew/kalico/pull/182)
-
-- [heaters: dual loop pid control](https://github.com/KalicoCrew/kalico/pull/735)
-
-- [heaters/fan: new heated_fan module](https://github.com/KalicoCrew/kalico/pull/259)
-
-- [gcode: jinja2.ext.do extension](https://github.com/KalicoCrew/kalico/pull/26) ([klipper#5149](https://github.com/Klipper3d/klipper/pull/5149))
-
-- [gcode: gcode_shell_command](https://github.com/KalicoCrew/kalico/pull/71) ([klipper#2173](https://github.com/Klipper3d/klipper/pull/2173) / [kiuah](https://github.com/dw-0/kiauh/blob/master/resources/gcode_shell_command.py) )
-
-- [gcode: expose math functions to gcode macros](https://github.com/KalicoCrew/kalico/pull/173) ([klipper#4072](https://github.com/Klipper3d/klipper/pull/4072))
-
-- [gcode: HEATER_INTERRUPT gcode command](https://github.com/KalicoCrew/kalico/pull/94)
-
-- [gcode: RELOAD_GCODE_MACROS command](https://github.com/KalicoCrew/kalico/pull/305)
-
-- [probe: dockable Probe](https://github.com/KalicoCrew/kalico/pull/43) ([klipper#4328](https://github.com/Klipper3d/klipper/pull/4328))
-
-- [probe: drop the first result](https://github.com/KalicoCrew/kalico/pull/2) ([klipper#3397](https://github.com/Klipper3d/klipper/issues/3397))
-
-- [probe: z_calibration](https://github.com/KalicoCrew/kalico/pull/31) ([klipper#4614](https://github.com/Klipper3d/klipper/pull/4614) / [protoloft/z_calibration](https://github.com/protoloft/klipper_z_calibration))
-
-- [z_tilt: z-tilt calibration](https://github.com/KalicoCrew/kalico/pull/105) ([klipper3d#4083](https://github.com/Klipper3d/klipper/pull/4083) / [dk/ztilt_calibration](https://github.com/KalicoCrew/kalico/pull/54))
-
-- [stepper: home_current](https://github.com/KalicoCrew/kalico/pull/65)
-
-- [stepper: current_change_dwell_time](https://github.com/KalicoCrew/kalico/pull/90)
-
-- [homing: post-home retract](https://github.com/KalicoCrew/kalico/pull/65)
-
-- [homing: sensorless minimum home distance](https://github.com/KalicoCrew/kalico/pull/65)
-
-- [homing: min_home_dist](https://github.com/KalicoCrew/kalico/pull/90)
-
-- [virtual_sdcard: scanning of subdirectories](https://github.com/KalicoCrew/kalico/pull/68) ([klipper#6327](https://github.com/Klipper3d/klipper/pull/6327))
-
-- [retraction: z_hop while retracting](https://github.com/KalicoCrew/kalico/pull/83) ([klipper#6311](https://github.com/Klipper3d/klipper/pull/6311))
-
-- [danger_options: allow plugins to override conflicting extras](https://github.com/KalicoCrew/kalico/pull/82)
-
-- [danger_options: expose the multi mcu homing timeout as a parameter](https://github.com/KalicoCrew/kalico/pull/93)
-
-- [danger_options: option to configure the homing elapsed distance tolerance](https://github.com/KalicoCrew/kalico/pull/110)
-
-- [danger_options: option to ignore ADC out of range](https://github.com/KalicoCrew/kalico/pull/129)
-
-- [temperature_mcu: add reference_voltage](https://github.com/KalicoCrew/kalico/pull/99) ([klipper#5713](https://github.com/Klipper3d/klipper/pull/5713))
-
-- [adxl345: improve ACCELEROMETER_QUERY command](https://github.com/KalicoCrew/kalico/pull/124)
-
-- [extruder: add flag to use the PA constant from a trapq move vs a cached value](https://github.com/KalicoCrew/kalico/pull/132)
-
-- [force_move: turn on by default](https://github.com/KalicoCrew/kalico/pull/135)
-
-- [resonance_tester: warn about active fans during input shaper calibration](https://github.com/KalicoCrew/kalico/pull/627)
-
-- [bed_mesh: add BED_MESH_CHECK command for mesh validation](https://github.com/KalicoCrew/kalico/pull/629)
-
-- [respond: turn on by default](https://github.com/KalicoCrew/kalico/pull/296)
-
-- [exclude_object: turn on by default](https://github.com/KalicoCrew/kalico/pull/306)
-
-- [bed_mesh: add bed_mesh_default config option](https://github.com/KalicoCrew/kalico/pull/143)
-
-- [config: CONFIG_SAVE updates included files](https://github.com/KalicoCrew/kalico/pull/153)
-
-- [kinematics: independent X&Y accel/velocity for corexy and cartesian](https://github.com/KalicoCrew/kalico/pull/4)
-
-- [kinematics: independent X&Y accel/velocity for corexz](https://github.com/KalicoCrew/kalico/pull/267)
-
-- [idle_timeout: allow the idle timeout to be disabled](https://github.com/KalicoCrew/kalico/issues/165)
-
-- [canbus: custom CAN bus uuid hash for deterministic uuids](https://github.com/KalicoCrew/kalico/pull/156)
-
-- [filament_switch|motion_sensor:  runout distance, smart and runout gcode](https://github.com/KalicoCrew/kalico/pull/158)
-
-- [z_tilt|qgl: custom threshold for probe_points_increasing check](https://github.com/KalicoCrew/kalico/pull/189)
-
-- [save_config: save without restarting the firmware](https://github.com/KalicoCrew/kalico/pull/191)
-
-- [configfile: recursive globs](https://github.com/KalicoCrew/kalico/pull/200) / ([klipper#6375](https://github.com/Klipper3d/klipper/pull/6375))
-
-- [temperature_fan: curve control algorithm](https://github.com/KalicoCrew/kalico/pull/193)
-
-- [shaper_calibrate: store and expose accel_per_hz](https://github.com/KalicoCrew/kalico/pull/224)
-
-- [resonance_tester: accepts ACCEL_PER_HZ in TEST_RESONANCES](https://github.com/KalicoCrew/kalico/pull/312)
-
-- [mcu: support for AT32F403](https://github.com/KalicoCrew/kalico/pull/284)
-
-- [z_tilt, quad_gantry_level: adaptive horizontal move z](https://github.com/KalicoCrew/kalico/pull/336)
-
-- [core: non-critical-mcus](https://github.com/KalicoCrew/kalico/pull/339)
-
-- [gcode_macros: !python templates](https://github.com/KalicoCrew/kalico/pull/360)
-
-- [gcode_macros: !!include macros/my_macro.py](https://github.com/KalicoCrew/kalico/pull/578)
-
-- [core: action_log](https://github.com/KalicoCrew/kalico/pull/367)
-
-- [danger_options: configurable homing constants](https://github.com/KalicoCrew/kalico/pull/378)
-
-- [tmc2240: adjustable driver_CS and current_range](https://github.com/KalicoCrew/kalico/pull/556)
-
-- [extruder: cold_extrude](https://github.com/KalicoCrew/kalico/pull/750)
-
-If you're feeling adventurous, take a peek at the extra features in the bleeding-edge-v2 branch [feature documentation](docs/Bleeding_Edge.md)
-and [feature configuration reference](docs/Config_Reference_Bleeding_Edge.md):
-
-- [extruder/pa: do not smooth base extruder position, only advance](https://github.com/KalicoCrew/kalico/pull/266)
-
-- [dmbutyugin's advanced-features branch - Pull Request #262](https://github.com/KalicoCrew/kalico/pull/262)
-  - stepper: high precision stepping protocol
-  - extruder: sync extruder motion with input shaper
-  - extruder: new print_pa_tower utility
-  - input_shaper: smooth input shapers
-  - input_shaper: new print_ringing_tower utility
-
-## Switch to Kalico
-
-> [!NOTE]
-> Any add-on modules you are using will need to be reinstalled after switching to Kalico. This includes things like Beacon support, led-effect, etc.
->
-> Any data in ~/printer_data such as printer configs and macros will be unaffected.
-
-### Option 1. Manually clone the repository
-
-If desired, make a backup copy of your existing Klipper installation by running:
-
-```bash
-mv ~/klipper ~/klipper_old
-```
-
-Then clone the Kalico repository and restart the `klipper` service:
-
-```bash
-git clone https://github.com/KalicoCrew/kalico.git ~/klipper
-sudo systemctl restart klipper
-```
-
-It might happen that your python environment needs to be updated. If that is the case, run:
-
-```bash
-~/klippy-env/bin/pip install -r ~/klipper/scripts/klippy-requirements.txt
-```
-
-### Option 2. Using KIAUH
-
-For users that are not comfortable using Git directly, [KIAUH v6](https://github.com/dw-0/kiauh) is able to use custom repositories.
-
-To do this, add the Kalico repo to KIAUH's custom repository config depending on your KIAUH version:
-
-#### Setup Kalico as repository in KIAUH v6
-
-- `cd ~/kiauh`
-- `cp default.kiauh.cfg kiauh.cfg`
-- `nano kiauh.cfg`
-- add `https://github.com/KalicoCrew/kalico, main` for the main branch
-
-    or `https://github.com/KalicoCrew/kalico, bleeding-edge-v2` for the bleeding edge branch
-- CTRL-X to save and exit
-
-From the KIAUH menu select:
-
--   [S] Settings
--   1\) Switch Klipper source repository
-
--   Select Kalico from the list
-
-#### Setup Kalico as repository in KIAUH v4
-
-- Add the custom repository to your `klipper_repos.txt` in the `~kiauh` directory
-- `echo "https://github.com/KalicoCrew/kalico,main" >> ~/kiauh/klipper_repos.txt` for the main branch
-
-  or `echo "https://github.com/KalicoCrew/kalico,bleeding-edge-v2" >> ~/kiauh/klipper_repos.txt` for the bleeding edge branch
-
-From the KIAUH menu select:
-
--   [6] Settings
--   1\) Set custom Klipper repository
-
--   Select Kalico from the list
-
-
-*Repository changes will not persist across KIAUH versions.*
-
-### Option 3. Adding a git-remote to the existing installation
-
-It allows you to switch back to mainline Klipper at any time via a `git checkout upstream_main`
-
-```bash
-cd ~/klipper
-git remote add kalico https://github.com/KalicoCrew/kalico.git
-git fetch kalico
-git checkout -b upstream-main origin/master
-git branch -D master
-git checkout -b main kalico/main
-sudo systemctl restart klipper
-sudo systemctl restart moonraker
-```
-
----
-
-Kalico is a 3d-Printer firmware. It combines the power of a general
-purpose computer with one or more micro-controllers. See the
-[features document](https://docs.kalico.gg/Features.html) for more
-information on why you should use Kalico.
-
-To begin using Kalico start by
-[installing](https://docs.kalico.gg/Installation.html) it.
-
-Kalico is Free Software. See the [license](COPYING) or read the
-[documentation](https://docs.kalico.gg/Overview.html).
-
-[![Join me on Discord](https://discord.com/api/guilds/1297243471442214913/widget.png?style=banner2)](https://kalico.gg/discord)
+General Kalico information is available in the [upstream documentation](https://docs.kalico.gg/). The local 5-axis guide and references describe this variant's additions.
